@@ -38,7 +38,7 @@ except Exception as e:  # pragma: no cover
 try:
     from ..models import ApiOpenAction, ApiOpenObservation
     from .api_open_env_environment import ApiOpenEnvironment
-except ModuleNotFoundError:
+except (ImportError, ModuleNotFoundError):
     from models import ApiOpenAction, ApiOpenObservation
     from server.api_open_env_environment import ApiOpenEnvironment
 
