@@ -1,0 +1,172 @@
+[
+  {
+    "task_description": "Generate invoice workflow for user U101",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [],
+    "step": 1,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Prepare billing pipeline for user U102",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U102"}, "result": {"name": "User102", "email": "u102@x.com"}}
+    ],
+    "step": 2,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Create invoice chain for user U103",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U103"}},
+      {"api": "get_orders", "args": {"user_id": "U103"}, "result": {"order_id": "O501", "product_id": "P701"}}
+    ],
+    "step": 3,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Process purchase to invoice for user U104",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U104"}},
+      {"api": "get_orders", "args": {"user_id": "U104"}},
+      {"api": "get_product", "args": {"product_id": "P702"}}
+    ],
+    "step": 4,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Invoice preparation sequence for user U105",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U105"}},
+      {"api": "get_orders", "args": {"user_id": "U105"}},
+      {"api": "get_product", "args": {"product_id": "P703"}},
+      {"api": "create_invoice", "args": {"user_id": "U105", "order_id": "O502"}}
+    ],
+    "step": 5,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Finalize invoice and notify user U106",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U106"}},
+      {"api": "get_orders", "args": {"user_id": "U106"}},
+      {"api": "get_product", "args": {"product_id": "P704"}},
+      {"api": "create_invoice", "args": {"user_id": "U106", "order_id": "O503"}},
+      {"api": "send_email", "args": {"email": "u106@x.com"}}
+    ],
+    "step": 6,
+    "max_steps": 8,
+    "task_complete": true
+  },
+
+  {
+    "task_description": "Execute billing steps for user U107",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_orders", "args": {"user_id": "U107"}}
+    ],
+    "step": 2,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Initiate invoice generation for user U108",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U108"}},
+      {"api": "get_orders", "args": {"user_id": "U108"}}
+    ],
+    "step": 3,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Continue invoice flow for user U109",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U109"}},
+      {"api": "get_orders", "args": {"user_id": "U109"}},
+      {"api": "get_product", "args": {"product_id": "P705"}}
+    ],
+    "step": 4,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Advance billing pipeline for user U110",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U110"}},
+      {"api": "get_orders", "args": {"user_id": "U110"}},
+      {"api": "get_product", "args": {"product_id": "P706"}},
+      {"api": "create_invoice", "args": {"user_id": "U110", "order_id": "O504"}}
+    ],
+    "step": 5,
+    "max_steps": 8,
+    "task_complete": false
+  },
+
+  {
+    "task_description": "Complete billing cycle for user U111",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U111"}},
+      {"api": "get_orders", "args": {"user_id": "U111"}},
+      {"api": "get_product", "args": {"product_id": "P707"}},
+      {"api": "create_invoice", "args": {"user_id": "U111", "order_id": "O505"}},
+      {"api": "send_email", "args": {"email": "u111@x.com"}}
+    ],
+    "step": 6,
+    "max_steps": 8,
+    "task_complete": true
+  },
+
+  {
+    "task_description": "Retrieve product info for user U115",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U115"}},
+      {"api": "get_orders", "args": {"user_id": "U115"}},
+      {"api": "get_product", "args": {"product_id": "P709"}}
+    ],
+    "step": 4,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Generate invoice record for user U116",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U116"}},
+      {"api": "get_orders", "args": {"user_id": "U116"}},
+      {"api": "get_product", "args": {"product_id": "P710"}},
+      {"api": "create_invoice", "args": {"user_id": "U116", "order_id": "O507"}}
+    ],
+    "step": 5,
+    "max_steps": 8,
+    "task_complete": false
+  },
+  {
+    "task_description": "Send invoice notification to user U117",
+    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
+    "api_call_history": [
+      {"api": "get_user", "args": {"user_id": "U117"}},
+      {"api": "get_orders", "args": {"user_id": "U117"}},
+      {"api": "get_product", "args": {"product_id": "P711"}},
+      {"api": "create_invoice", "args": {"user_id": "U117", "order_id": "O508"}},
+      {"api": "send_email", "args": {"email": "u117@x.com"}}
+    ],
+    "step": 6,
+    "max_steps": 8,
+    "task_complete": true
+  }
+]
