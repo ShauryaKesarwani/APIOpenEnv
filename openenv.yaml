@@ -1,7 +1,37 @@
 spec_version: 1
-name: api_open_env
+name: api-workflow-env
 type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
 
+description: |
+  API Workflow Environment for multi-step task completion.
+  The agent must learn to call APIs in the correct sequence to complete
+  real-world tasks like customer support workflows.
+
+tasks:
+  - id: easy
+    name: Fetch User Email
+    description: Single API call to retrieve user information
+    difficulty: easy
+    max_steps: 3
+
+  - id: medium
+    name: Generate Invoice
+    description: Multi-step workflow (get_user -> get_orders -> get_product -> create_invoice)
+    difficulty: medium
+    max_steps: 8
+
+  - id: hard
+    name: Resolve Support Ticket
+    description: Complex workflow with validation (get_ticket -> get_user -> get_orders -> process_refund -> send_email)
+    difficulty: hard
+    max_steps: 10
+
+grading:
+  type: deterministic
+  criteria:
+    - task_completion: 0.5
+    - efficiency: 0.3
+    - sequence_correctness: 0.2

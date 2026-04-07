@@ -1,9 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
 """Api Open Env Environment Client."""
 
 from typing import Dict
@@ -19,61 +13,40 @@ class ApiOpenEnv(
     EnvClient[ApiOpenAction, ApiOpenObservation, State]
 ):
     """
-    Client for the Api Open Env Environment.
+    Client for the API Workflow Environment.
 
     This client maintains a persistent WebSocket connection to the environment server,
     enabling efficient multi-step interactions with lower latency.
-    Each client instance has its own dedicated environment session on the server.
 
     Example:
-        >>> # Connect to a running server
         >>> with ApiOpenEnv(base_url="http://localhost:8000") as client:
         ...     result = client.reset()
-        ...     print(result.observation.echoed_message)
+        ...     print(result.observation.task_description)
         ...
-        ...     result = client.step(ApiOpenAction(message="Hello!"))
-        ...     print(result.observation.echoed_message)
-
-    Example with Docker:
-        >>> # Automatically start container and connect
-        >>> client = ApiOpenEnv.from_docker_image("api_open_env-env:latest")
-        >>> try:
-        ...     result = client.reset()
-        ...     result = client.step(ApiOpenAction(message="Test"))
-        ... finally:
-        ...     client.close()
+        ...     result = client.step(ApiOpenAction(api_name="get_user", args={"user_id": "U101"}))
+        ...     print(result.observation.last_api_result)
     """
 
     def _step_payload(self, action: ApiOpenAction) -> Dict:
-        """
-        Convert ApiOpenAction to JSON payload for step message.
-
-        Args:
-            action: ApiOpenAction instance
-
-        Returns:
-            Dictionary representation suitable for JSON encoding
-        """
+        """Convert ApiOpenAction to JSON payload for step message."""
         return {
-            "message": action.message,
+            "api_name": action.api_name,
+            "args": action.args,
         }
 
     def _parse_result(self, payload: Dict) -> StepResult[ApiOpenObservation]:
-        """
-        Parse server response into StepResult[ApiOpenObservation].
-
-        Args:
-            payload: JSON response data from server
-
-        Returns:
-            StepResult with ApiOpenObservation
-        """
+        """Parse server response into StepResult[ApiOpenObservation]."""
         obs_data = payload.get("observation", {})
         observation = ApiOpenObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
+            task_description=obs_data.get("task_description", ""),
+            available_apis=obs_data.get("available_apis", []),
+            last_api_result=obs_data.get("last_api_result"),
+            api_call_history=obs_data.get("api_call_history", []),
+            step_count=obs_data.get("step_count", 0),
+            max_steps=obs_data.get("max_steps", 10),
+            task_complete=obs_data.get("task_complete", False),
             done=payload.get("done", False),
-            reward=payload.get("reward"),
+            reward=payload.get("reward", 0.0),
             metadata=obs_data.get("metadata", {}),
         )
 
@@ -84,15 +57,7 @@ class ApiOpenEnv(
         )
 
     def _parse_state(self, payload: Dict) -> State:
-        """
-        Parse server response into State object.
-
-        Args:
-            payload: JSON response from state request
-
-        Returns:
-            State object with episode_id and step_count
-        """
+        """Parse server response into State object."""
         return State(
             episode_id=payload.get("episode_id"),
             step_count=payload.get("step_count", 0),

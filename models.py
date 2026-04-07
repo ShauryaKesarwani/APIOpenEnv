@@ -5,23 +5,44 @@
 # LICENSE file in the root directory of this source tree.
 
 """
-Data models for the Api Open Env Environment.
+Data models for the API Workflow Environment.
 
-The api_open_env environment is a simple test environment that echoes back messages.
+This environment simulates a real-world API workflow system where an agent
+must call APIs in the correct sequence to complete tasks.
 """
 
+from typing import Dict, List, Any, Optional
 from openenv.core.env_server.types import Action, Observation
 from pydantic import Field
 
 
 class ApiOpenAction(Action):
-    """Action for the Api Open Env environment - just a message to echo."""
+    """
+    Action for the API Workflow Environment.
 
-    message: str = Field(..., description="Message to echo back")
+    The agent specifies which API to call and what arguments to pass.
+    """
+
+    api_name: str = Field(..., description="Name of the API to call")
+    args: Dict[str, Any] = Field(default_factory=dict, description="Arguments to pass to the API")
 
 
 class ApiOpenObservation(Observation):
-    """Observation from the Api Open Env environment - the echoed message."""
+    """
+    Observation from the API Workflow Environment.
 
-    echoed_message: str = Field(default="", description="The echoed message")
-    message_length: int = Field(default=0, description="Length of the echoed message")
+    Contains the task description, available APIs, last API result,
+    call history, and episode state.
+    """
+
+    task_description: str = Field(default="", description="Description of the task to complete")
+    available_apis: List[str] = Field(default_factory=list, description="List of available API names")
+    last_api_result: Optional[Dict[str, Any]] = Field(
+        default=None, description="Result from the last API call"
+    )
+    api_call_history: List[Dict[str, Any]] = Field(
+        default_factory=list, description="History of all API calls made"
+    )
+    step_count: int = Field(default=0, description="Current step number in the episode")
+    max_steps: int = Field(default=10, description="Maximum steps allowed")
+    task_complete: bool = Field(default=False, description="Whether the task has been completed")
