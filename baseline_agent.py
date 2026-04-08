@@ -18,6 +18,9 @@ import sys
 import json
 import argparse
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, ".")
 
@@ -131,14 +134,16 @@ class BaselineAgent:
             verbose: Whether to print agent's reasoning
         """
         api_key = os.environ.get("OPENAI_API_KEY")
+        inference_server = os.environ.get("INFERENCE_SERVER")
+        model_name = os.environ.get("MODEL_LOWER_NAME")
         if not api_key:
             raise ValueError(
                 "OPENAI_API_KEY environment variable not set. "
                 "Please set it with: export OPENAI_API_KEY='your-key-here'"
             )
 
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
+        self.client = OpenAI(api_key=api_key, base_url=inference_server)
+        self.model = model_name if model_name else model
         self.verbose = verbose
 
     def get_action(self, obs: ApiOpenObservation) -> Optional[ApiOpenAction]:

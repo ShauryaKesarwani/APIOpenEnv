@@ -22,6 +22,7 @@ dependencies = [
     "openai>=1.0.0",
     # Environment-specific dependencies
     # Add all dependencies needed for your environment here
+    "python-dotenv>=1.2.2",
 ]
 
 [project.optional-dependencies]
