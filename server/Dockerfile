@@ -37,21 +37,39 @@ RUN if ! command -v uv >/dev/null 2>&1; then \
         mv /root/.local/bin/uv /usr/local/bin/uv && \
         mv /root/.local/bin/uvx /usr/local/bin/uvx; \
     fi
+
+# Helper for transient network/DNS failures during package download
+RUN printf '%s\n' \
+    '#!/usr/bin/env sh' \
+    'set -eu' \
+    'attempt=1' \
+    'max=5' \
+    'delay=5' \
+    'while [ "$attempt" -le "$max" ]; do' \
+    '  if "$@"; then exit 0; fi' \
+    '  echo "uv command failed (attempt ${attempt}/${max}). Retrying in ${delay}s..." >&2' \
+    '  sleep "$delay"' \
+    '  attempt=$((attempt + 1))' \
+    '  delay=$((delay * 2))' \
+    'done' \
+    'echo "uv command failed after ${max} attempts." >&2' \
+    'exit 1' \
+    > /usr/local/bin/retry_cmd && chmod +x /usr/local/bin/retry_cmd
     
 # Install dependencies using uv sync
 # If uv.lock exists, use it; otherwise resolve on the fly
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -f uv.lock ]; then \
-        uv sync --no-install-project --no-editable -v; \
+        retry_cmd uv sync --no-install-project --no-editable -v; \
     else \
-        uv sync --no-install-project --no-editable -v; \
+        retry_cmd uv sync --no-install-project --no-editable -v; \
     fi
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -f uv.lock ]; then \
-        uv sync --frozen --no-editable; \
+        retry_cmd uv sync --frozen --no-editable -v; \
     else \
-        uv sync --no-editable; \
+        retry_cmd uv sync --no-editable -v; \
     fi
 
 # Final runtime stage
