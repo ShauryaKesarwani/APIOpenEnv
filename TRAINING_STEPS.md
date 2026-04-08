@@ -10,28 +10,42 @@ pip install trl peft bitsandbytes datasets matplotlib
 ## 5-Step Training Process
 
 ### Step 1: Collect Expert Data (30-60 min)
-```bash
-export OPENAI_API_KEY="your-key"
-# For Ollama:
-# export INFERENCE_SERVER="http://localhost:11434/v1"
-# export MODEL_LOWER_NAME="qwen2.5:14b"
 
-python collect_trajectories.py \
-  --model qwen2.5:14b \
-  --episodes 100 \
-  --min-grade 0.8 \
-  --output data/qwen_trajectories.jsonl
+PowerShell (Windows) + Ollama (Qwen3 0.8B):
+```powershell
+$env:INFERENCE_SERVER = "http://localhost:11434/v1"
+$env:OPENAI_API_KEY   = "ollama"   # dummy key is fine for Ollama
+
+# Quick sanity check (optional)
+python baseline_agent.py --model qwen3:0.8b --episodes 1 --difficulty easy --no-tools
+
+# Collect trajectories (use --no-tools if your Ollama build doesn't support tool_calls)
+python collect_trajectories.py `
+  --model qwen3:0.8b `
+  --episodes 30 `
+  --difficulty easy `
+  --min-grade 0.6 `
+  --no-tools `
+  --output data/qwen3_0.8b_trajectories.jsonl
 ```
+
+Notes:
+- With only a 0.8B model as the "expert", you may need a lower `--min-grade` (0.5–0.7) to keep enough data.
+- If you have access to a larger Ollama model, use that for collection (better demonstrations).
 
 **Output**: `data/qwen_trajectories.jsonl` (100+ successful task completions)
 
 ---
 
 ### Step 2: Prepare Dataset (1-2 min)
-```bash
-python prepare_training_data.py \
-  --input data/qwen_trajectories.jsonl \
-  --output data/training_data.jsonl \
+
+This step is **optional** for `train_model.py` (that script trains directly from trajectories JSONL).
+Use it if you want an OpenAI-style JSONL dataset for other trainers.
+
+```powershell
+python prepare_training_data.py `
+  --input data/qwen3_0.8b_trajectories.jsonl `
+  --output data/training_data_openai.jsonl `
   --format openai
 ```
 
@@ -39,10 +53,25 @@ python prepare_training_data.py \
 
 ---
 
-### Step 3: Train Model (2-4 hours)
-```bash
-python train_model.py
+### Step 3: Train Model (quick start)
+
+`train_model.py` fine-tunes a **Hugging Face base model** with Unsloth (it does **not** fine-tune your Ollama model file).
+In ~45 minutes you can do a short sanity run (few trajectories, 1 epoch):
+
+```powershell
+# Install training deps (can take a bit the first time)
+python -m pip install -e ".[training]"
+
+# Quick sanity training run
+python train_model.py `
+  --trajectories data/qwen3_0.8b_trajectories.jsonl `
+  --epochs 1 `
+  --min-grade 0.6 `
+  --max-trajectories 30 `
+  --output-dir trained_model_qwen3_sanity
 ```
+
+If you specifically want a Qwen3 0.8B base (HF), pass `--base-model <hf_model_id>`.
 
 **What it does**:
 - Loads Qwen/Qwen2.5-0.8B-Instruct

@@ -46,3 +46,5 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+Qwen3-0.6b/

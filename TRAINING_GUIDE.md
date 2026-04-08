@@ -12,7 +12,7 @@ This guide explains how to train a small 0.8B parameter model to predict correct
 - More standardized format for LLM evaluation
 
 ### 2. **1-Second Delay** ✅
-- Added `time.sleep(1.0)` after each task iteration
+- Added a short delay after each task iteration (currently 1.0s)
 - Prevents server overload during evaluation
 
 ### 3. **Backward Compatibility**
@@ -21,22 +21,28 @@ This guide explains how to train a small 0.8B parameter model to predict correct
 
 ## Training Pipeline
 
+Important note: `train_model.py` trains from the collected **trajectories JSONL**; `prepare_training_data.py` produces an OpenAI-style dataset that’s optional unless you’re using a different trainer.
+
 ### Phase 1: Data Collection with Qwen (Upper Bound)
 
 **Goal:** Collect high-quality trajectories using Qwen as your expert model
 
 ```bash
 # Test with Qwen first to establish upper bound
-export OPENAI_API_KEY="your-ollama-key"
-export INFERENCE_SERVER="http://localhost:11434/v1"  # Ollama server
-export MODEL_LOWER_NAME="qwen2.5:14b"  # or your Qwen variant
+PowerShell example (Windows + Ollama):
+```powershell
+$env:INFERENCE_SERVER = "http://localhost:11434/v1"
+$env:OPENAI_API_KEY   = "ollama"   # dummy key is fine for Ollama
+```
 
 # Run evaluation to collect trajectories
-python baseline_agent.py \
+python collect_trajectories.py \
   --model qwen2.5:14b \
-  --episodes 20 \
-  --difficulty all \
-  --output data/qwen_trajectories.json
+  --episodes 100 \
+  --min-grade 0.8 \
+  --output data/qwen_trajectories.jsonl
+
+# If your Ollama server doesn't support tool calling, add: --no-tools
 ```
 
 **What to collect:**

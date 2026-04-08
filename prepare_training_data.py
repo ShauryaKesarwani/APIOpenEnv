@@ -3,6 +3,7 @@ Convert collected trajectories to training format for fine-tuning.
 Supports both OpenAI fine-tuning format and HuggingFace format.
 """
 
+import os
 import json
 import argparse
 from typing import List, Dict, Any
@@ -184,6 +185,10 @@ def prepare_dataset(
     print(f"Generated {len(training_examples)} training examples")
     
     # Save training data
+    out_dir = os.path.dirname(output_file)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     with open(output_file, 'w') as f:
         for example in training_examples:
             f.write(json.dumps(example) + '\n')

@@ -3,13 +3,17 @@ Collect training trajectories from successful agent runs.
 Saves detailed execution traces for fine-tuning.
 """
 
+import os
 import json
 import argparse
 from datetime import datetime
 from typing import List, Dict, Any
+from dotenv import load_dotenv
 from baseline_agent import BaselineAgent
 from server.api_open_env_environment import ApiOpenEnvironment
 import time
+
+load_dotenv(dotenv_path=".env")
 
 
 def collect_trajectory(
@@ -167,7 +171,11 @@ def collect_dataset(
     # Save trajectories
     print(f"\n{'=' * 60}")
     print(f"Saving {len(all_trajectories)} trajectories to {output_file}")
-    
+
+    out_dir = os.path.dirname(output_file)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     with open(output_file, 'w') as f:
         for traj in all_trajectories:
             f.write(json.dumps(traj) + '\n')
