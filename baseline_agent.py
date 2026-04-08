@@ -17,6 +17,7 @@ import os
 import sys
 import json
 import argparse
+import time
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import time
@@ -47,37 +48,160 @@ from server.api_open_env_environment import ApiOpenEnvironment
 from models import ApiOpenAction, ApiOpenObservation
 
 
+# Tool definitions for OpenAI-style function calling
+TOOL_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user",
+            "description": "Retrieve user information by user ID",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The user ID to look up (e.g., U101, U102)"
+                    }
+                },
+                "required": ["user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_orders",
+            "description": "Retrieve all orders for a given user",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The user ID to look up orders for"
+                    }
+                },
+                "required": ["user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_product",
+            "description": "Retrieve product information by product ID",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_id": {
+                        "type": "string",
+                        "description": "The product ID to look up (e.g., P701, P702)"
+                    }
+                },
+                "required": ["product_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_invoice",
+            "description": "Create an invoice for a user's order",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The user ID"
+                    },
+                    "order_id": {
+                        "type": "string",
+                        "description": "The order ID to create invoice for"
+                    }
+                },
+                "required": ["user_id", "order_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ticket",
+            "description": "Retrieve support ticket information",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticket_id": {
+                        "type": "string",
+                        "description": "The ticket ID to look up (e.g., T301, T302)"
+                    }
+                },
+                "required": ["ticket_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "process_refund",
+            "description": "Process a refund for a user's order. Refunds are only valid if the order is within 30 days.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The user ID"
+                    },
+                    "order_id": {
+                        "type": "string",
+                        "description": "The order ID to refund"
+                    }
+                },
+                "required": ["user_id", "order_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_email",
+            "description": "Send an email notification to the specified address",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "The recipient email address"
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Email subject line"
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Email body content"
+                    }
+                },
+                "required": ["email"]
+            }
+        }
+    }
+]
+
 SYSTEM_PROMPT = """You are an AI agent that completes tasks by calling APIs in the correct sequence.
 
 You will receive:
 - A task description
-- Available APIs you can call
+- Available APIs you can call via function calling
 - Results from previous API calls (if any)
 
-Your job is to decide which API to call next and with what arguments.
+Your job is to decide which API to call next using function calling.
 
 IMPORTANT RULES:
-1. Only use APIs from the available_apis list
+1. Only use APIs from the available tools
 2. Use information from previous API results to inform your next action
 3. Think step-by-step about what information you need
 4. For invoice tasks: get_user -> get_orders -> get_product -> create_invoice
 5. For ticket tasks: get_ticket -> get_user -> get_orders -> process_refund (if eligible) -> send_email
-
-Respond with a JSON object containing:
-{
-    "reasoning": "Brief explanation of why you're making this call",
-    "api_name": "name_of_api_to_call",
-    "args": {"arg1": "value1", ...}
-}
-
-API Signatures:
-- get_user(user_id: str) -> Returns user info including email
-- get_orders(user_id: str) -> Returns list of orders with order_id, product_id, amount, date
-- get_product(product_id: str) -> Returns product info
-- create_invoice(user_id: str, order_id: str) -> Creates invoice for the order
-- get_ticket(ticket_id: str) -> Returns ticket info with user_id and order_id
-- process_refund(user_id: str, order_id: str) -> Processes refund (only if order within 30 days)
-- send_email(email: str, subject: str, body: str) -> Sends email notification
 """
 
 
@@ -143,15 +267,18 @@ def parse_llm_response(response: str) -> Optional[Dict[str, Any]]:
 class BaselineAgent:
     """LLM-based agent for the API Workflow Environment."""
 
-    def __init__(self, model: str = "gpt-4o-mini", verbose: bool = True):
+    def __init__(self, model: str = "gpt-4o-mini", verbose: bool = True, use_tools: bool = True):
         """
         Initialize the agent with OpenAI client.
 
         Args:
             model: OpenAI model to use (default: gpt-4o-mini for cost efficiency)
             verbose: Whether to print agent's reasoning
+            use_tools: Whether to use tool calling format (True) or legacy JSON format (False)
         """
         api_key = os.environ.get("OPENAI_API_KEY")
+        inference_server = os.environ.get("INFERENCE_SERVER")
+        model_name = os.environ.get("MODEL_UPPER_NAME")
         if not api_key:
             raise ValueError(
                 "OPENAI_API_KEY environment variable not set. "
@@ -161,6 +288,7 @@ class BaselineAgent:
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.verbose = verbose
+        self.use_tools = use_tools
 
     def get_action(self, obs: ApiOpenObservation) -> Optional[ApiOpenAction]:
         """
@@ -175,33 +303,64 @@ class BaselineAgent:
         user_prompt = format_observation_for_llm(obs)
 
         try:
-            def _call():
-                return self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.1,  # Low temperature for consistency
-                    max_tokens=500,
-            )
+            # Filter tools to only include available APIs for this task
+            available_tools = [
+                tool for tool in TOOL_DEFINITIONS 
+                if tool["function"]["name"] in obs.available_apis
+            ] if self.use_tools else None
 
-            response = call_model_with_retry(_call, retries=5, base_wait=1)
+            request_params = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.1,  # Low temperature for consistency
+                "max_tokens": 500,
+            }
             
-            llm_response = response.choices[0].message.content
-            parsed = parse_llm_response(llm_response)
+            # Add tools if using tool calling format
+            if self.use_tools and available_tools:
+                request_params["tools"] = available_tools
+                request_params["tool_choice"] = "auto"
+            
+            response = self.client.chat.completions.create(**request_params)
+            message = response.choices[0].message
 
-            if parsed and parsed.get("api_name"):
+            # Handle tool calls (new format)
+            if self.use_tools and hasattr(message, 'tool_calls') and message.tool_calls:
+                tool_call = message.tool_calls[0]
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+                
                 if self.verbose:
-                    print(f"  [Agent] Reasoning: {parsed.get('reasoning', 'N/A')}")
-                    print(f"  [Agent] Action: {parsed['api_name']}({parsed['args']})")
-
+                    print(f"  [Agent] Tool Call: {function_name}")
+                    print(f"  [Agent] Arguments: {function_args}")
+                
                 return ApiOpenAction(
-                    api_name=parsed["api_name"],
-                    args=parsed["args"],
+                    api_name=function_name,
+                    args=function_args,
                 )
+            
+            # Handle legacy JSON response format
+            elif message.content:
+                llm_response = message.content
+                parsed = parse_llm_response(llm_response)
+
+                if parsed and parsed.get("api_name"):
+                    if self.verbose:
+                        print(f"  [Agent] Reasoning: {parsed.get('reasoning', 'N/A')}")
+                        print(f"  [Agent] Action: {parsed['api_name']}({parsed['args']})")
+
+                    return ApiOpenAction(
+                        api_name=parsed["api_name"],
+                        args=parsed["args"],
+                    )
+                else:
+                    print(f"  [Agent] Could not parse response: {llm_response[:200]}")
+                    return None
             else:
-                print(f"  [Agent] Could not parse response: {llm_response[:200]}")
+                print(f"  [Agent] No tool call or content in response")
                 return None
 
         except Exception as e:
@@ -268,6 +427,9 @@ def run_episode(
 
         if obs.task_complete:
             print("\n*** TASK COMPLETED! ***")
+        
+        # Add 1 second delay to prevent overload
+        time.sleep(1.0)
 
     # Get final grade
     grade = env.grade()
@@ -296,6 +458,7 @@ def evaluate_agent(
     episodes_per_difficulty: int = 3,
     difficulties: List[str] = None,
     verbose: bool = True,
+    use_tools: bool = True,
 ) -> Dict[str, Any]:
     """
     Evaluate the agent across multiple episodes and difficulties.
@@ -305,6 +468,7 @@ def evaluate_agent(
         episodes_per_difficulty: Number of episodes per difficulty level
         difficulties: List of difficulties to test (default: all)
         verbose: Print detailed output
+        use_tools: Whether to use tool calling format
 
     Returns:
         Evaluation results with scores
@@ -316,10 +480,11 @@ def evaluate_agent(
     print("API WORKFLOW ENVIRONMENT - BASELINE AGENT EVALUATION")
     print("=" * 60)
     print(f"Model: {model}")
+    print(f"Tool Calling Mode: {use_tools}")
     print(f"Episodes per difficulty: {episodes_per_difficulty}")
     print(f"Difficulties: {difficulties}")
 
-    agent = BaselineAgent(model=model, verbose=verbose)
+    agent = BaselineAgent(model=model, verbose=verbose, use_tools=use_tools)
     env = ApiOpenEnvironment()
 
     all_results = []
@@ -405,6 +570,11 @@ def main():
         default=None,
         help="Save results to JSON file",
     )
+    parser.add_argument(
+        "--no-tools",
+        action="store_true",
+        help="Use legacy JSON format instead of tool calling",
+    )
 
     args = parser.parse_args()
 
@@ -420,6 +590,7 @@ def main():
         episodes_per_difficulty=args.episodes,
         difficulties=difficulties,
         verbose=not args.quiet,
+        use_tools=not args.no_tools,
     )
 
     # Save results if requested
