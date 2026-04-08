@@ -18,6 +18,32 @@ import sys
 import json
 import argparse
 from typing import List, Dict, Any, Optional
+<<<<<<< Updated upstream
+=======
+from dotenv import load_dotenv
+import time
+
+
+load_dotenv()
+>>>>>>> Stashed changes
+
+
+def call_model_with_retry(call_fn, retries=5, base_wait=1, max_wait=30):
+    for i in range(retries):
+        try:
+            return call_fn()
+        except Exception as e:
+            error_msg = str(e).lower()
+
+            if "429" in error_msg or "rate limit" in error_msg:
+                wait = min(base_wait * (2 ** i), max_wait)
+                print(f"Rate limited. Retrying in {wait}s... ({i+1}/{retries})")
+                time.sleep(wait)
+            else:
+                raise
+
+    raise Exception("Max retries exceeded")
+
 
 sys.path.insert(0, ".")
 
@@ -154,16 +180,19 @@ class BaselineAgent:
         user_prompt = format_observation_for_llm(obs)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,  # Low temperature for consistency
-                max_tokens=500,
+            def _call():
+                return self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,  # Low temperature for consistency
+                    max_tokens=500,
             )
 
+            response = call_model_with_retry(_call, retries=5, base_wait=1)
+            
             llm_response = response.choices[0].message.content
             parsed = parse_llm_response(llm_response)
 
