@@ -198,3 +198,139 @@ uv run python test_env.py
 # Validate OpenEnv compliance
 uv run openenv validate
 ```
+
+---
+
+## 🤖 Training a Small Model (0.8B)
+
+This project includes infrastructure to train a small Qwen 0.8B model using expert trajectories from larger models.
+
+### Training Pipeline (5 Steps)
+
+#### 1. **Collect Expert Trajectories**
+
+```bash
+# Set up Ollama with Qwen (or use OpenAI API)
+export OPENAI_API_KEY="your-key"
+export INFERENCE_SERVER="http://localhost:11434/v1"  # for Ollama
+export MODEL_LOWER_NAME="qwen2.5:14b"
+
+# Collect 100+ successful trajectories (grade >= 0.8)
+python collect_trajectories.py \
+  --model qwen2.5:14b \
+  --episodes 100 \
+  --min-grade 0.8 \
+  --output data/qwen_trajectories.jsonl
+```
+
+#### 2. **Prepare Training Data**
+
+```bash
+# Convert to fine-tuning format
+python prepare_training_data.py \
+  --input data/qwen_trajectories.jsonl \
+  --output data/training_data.jsonl \
+  --format openai
+```
+
+#### 3. **Train with LoRA**
+
+```bash
+# Install training dependencies
+pip install unsloth trl peft bitsandbytes
+
+# Fine-tune Qwen 0.8B (takes 2-4 hours on single GPU)
+python train_model.py
+```
+
+The training script:
+- Uses **4-bit quantization** for memory efficiency
+- Applies **LoRA adapters** (rank=16) to key layers
+- Trains for **3 epochs** with cosine LR schedule
+- Saves to `./trained_model/`
+
+#### 4. **Evaluate Performance**
+
+```bash
+# Compare base model vs trained model
+python baseline_agent.py --model qwen2.5:0.8b --episodes 10 --output results/base.json
+python baseline_agent.py --model ./trained_model --episodes 10 --output results/trained.json
+
+# Generate comparison report
+python compare_models.py \
+  results/base.json \
+  results/trained.json \
+  --names "Qwen 0.8B Base" "Qwen 0.8B Trained"
+```
+
+#### 5. **Visualize Results**
+
+The comparison script generates:
+- Performance tables by difficulty
+- Completion rate comparisons  
+- Grade improvement charts
+- `model_comparison.png` graph
+
+### Expected Training Results
+
+| Model | Completion Rate | Avg Grade | Speed |
+|-------|----------------|-----------|-------|
+| **Qwen 14B (Expert)** | ~90% | 0.85 | 1x |
+| **Qwen 0.8B (Base)** | ~40% | 0.45 | 10x |
+| **Qwen 0.8B (Trained)** | **~65%** | **0.65** | 10x |
+
+**Goal**: Achieve 60-70% of expert performance at 17.5x smaller model size.
+
+### Training Configuration
+
+- **Base Model**: Qwen/Qwen2.5-0.8B-Instruct
+- **Method**: Supervised Fine-Tuning (SFT) with LoRA
+- **Data**: 100-300 successful trajectories
+- **LoRA Rank**: 16 (balances quality vs efficiency)
+- **Batch Size**: 2 (with 4x gradient accumulation)
+- **Learning Rate**: 2e-4
+- **Hardware**: Single GPU with 8GB+ VRAM
+- **Time**: 2-4 hours
+
+### Files for Training
+
+| File | Purpose |
+|------|---------|
+| `collect_trajectories.py` | Gather expert demonstrations |
+| `prepare_training_data.py` | Convert to training format |
+| `train_model.py` | LoRA fine-tuning script |
+| `compare_models.py` | Evaluation & comparison |
+| `baseline_agent.py` | Run inference with any model |
+
+---
+
+## 🚀 Hackathon Inference Script
+
+For hackathon submission, use the standardized inference script:
+
+```bash
+# Set environment variables
+export API_BASE_URL="https://api.openai.com/v1"
+export MODEL_NAME="gpt-4o-mini"
+export HF_TOKEN="your-api-key"
+
+# Run inference on all tasks
+python inference.py
+```
+
+**Output Format** (required for hackathon):
+```
+[START] task=easy env=api-workflow-env model=gpt-4o-mini
+[STEP] step=1 action=get_user({"user_id":"U101"}) reward=0.10 done=false error=null
+[STEP] step=2 action=get_orders({"user_id":"U101"}) reward=0.20 done=false error=null
+...
+[END] success=true steps=5 score=0.850 rewards=0.10,0.20,0.30,0.15,1.00
+```
+
+The script:
+- ✅ Runs all 3 tasks (easy, medium, hard)
+- ✅ Uses OpenAI-compatible client
+- ✅ Reads credentials from environment
+- ✅ Outputs exact [START]/[STEP]/[END] format
+- ✅ Completes within 20 minutes
+- ✅ Returns scores in [0, 1] range

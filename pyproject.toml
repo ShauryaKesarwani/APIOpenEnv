@@ -30,6 +30,15 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
 ]
+training = [
+    # For LoRA fine-tuning
+    "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git",
+    "trl>=0.7.0",
+    "peft>=0.7.0",
+    "bitsandbytes>=0.41.0",
+    "datasets>=2.14.0",
+    "matplotlib>=3.7.0",  # For visualization
+]
 
 [project.scripts]
 # Server entry point - enables running via: uv run --project . server
