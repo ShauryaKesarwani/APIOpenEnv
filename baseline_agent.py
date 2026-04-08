@@ -18,14 +18,12 @@ import sys
 import json
 import argparse
 from typing import List, Dict, Any, Optional
-<<<<<<< Updated upstream
-=======
 from dotenv import load_dotenv
 import time
 
 
 load_dotenv()
->>>>>>> Stashed changes
+
 
 
 def call_model_with_retry(call_fn, retries=5, base_wait=1, max_wait=30):
