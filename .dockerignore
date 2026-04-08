@@ -1,0 +1,42 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Test and development
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Training artifacts (don't include in container)
+data/
+results/
+trained_model/
+model_comparison.png
+
+# Environment files
+.env
+.env.local

@@ -212,8 +212,8 @@ This project includes infrastructure to train a small Qwen 0.8B model using expe
 ```bash
 # Set up Ollama with Qwen (or use OpenAI API)
 export OPENAI_API_KEY="your-key"
-export INFERENCE_SERVER="http://localhost:11434/v1"  # for Ollama
-export MODEL_LOWER_NAME="qwen2.5:14b"
+export API_BASE_URL="http://localhost:11434/v1"  # for Ollama
+export MODEL_NAME="qwen2.5:14b"
 
 # Collect 100+ successful trajectories (grade >= 0.8)
 python collect_trajectories.py \

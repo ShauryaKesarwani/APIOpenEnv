@@ -277,8 +277,8 @@ class BaselineAgent:
             use_tools: Whether to use tool calling format (True) or legacy JSON format (False)
         """
         api_key = os.environ.get("OPENAI_API_KEY")
-        inference_server = os.environ.get("INFERENCE_SERVER")
-        model_name = os.environ.get("MODEL_UPPER_NAME")
+        inference_server = os.environ.get("API_BASE_URL")
+        model_name = os.environ.get("MODEL_NAME")
         if not api_key:
             raise ValueError(
                 "OPENAI_API_KEY environment variable not set. "
@@ -429,7 +429,7 @@ def run_episode(
             print("\n*** TASK COMPLETED! ***")
         
         # Add 1 second delay to prevent overload
-        time.sleep(1.0)
+        time.sleep(2.0)
 
     # Get final grade
     grade = env.grade()
