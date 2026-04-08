@@ -10,7 +10,7 @@ Usage:
     python baseline_agent.py
 
     # Or with specific settings:
-    python baseline_agent.py --model gpt-4o-mini --episodes 5 --difficulty all
+    python baseline_agent.py --model qwen3:0.6b --episodes 5 --difficulty all
 """
 
 import os
@@ -267,17 +267,17 @@ def parse_llm_response(response: str) -> Optional[Dict[str, Any]]:
 class BaselineAgent:
     """LLM-based agent for the API Workflow Environment."""
 
-    def __init__(self, model: str = "gpt-4o-mini", verbose: bool = True, use_tools: bool = True):
+    def __init__(self, model: str = "qwen3:0.6b", verbose: bool = True, use_tools: bool = True):
         """
         Initialize the agent with OpenAI client.
 
         Args:
-            model: OpenAI model to use (default: gpt-4o-mini for cost efficiency)
+            model: OpenAI/OLLAMA model to use (default: qwen3:0.6b for cost efficiency)
             verbose: Whether to print agent's reasoning
             use_tools: Whether to use tool calling format (True) or legacy JSON format (False)
         """
         api_key = os.environ.get("OPENAI_API_KEY")
-        inference_server = os.environ.get("API_BASE_URL")
+        api_base_url = os.environ.get("API_BASE_URL")
         model_name = os.environ.get("MODEL_NAME")
         if not api_key:
             raise ValueError(
@@ -285,8 +285,8 @@ class BaselineAgent:
                 "Please set it with: export OPENAI_API_KEY='your-key-here'"
             )
 
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
+        self.client = OpenAI(api_key=api_key, base_url=api_base_url)
+        self.model = model_name if model_name else model
         self.verbose = verbose
         self.use_tools = use_tools
 
@@ -454,7 +454,7 @@ def run_episode(
 
 
 def evaluate_agent(
-    model: str = "gpt-4o-mini",
+    model: str = os.environ.get("MODEL_NAME", "qwen3:0.6b"),
     episodes_per_difficulty: int = 3,
     difficulties: List[str] = None,
     verbose: bool = True,
@@ -543,8 +543,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4o-mini",
-        help="OpenAI model to use (default: gpt-4o-mini)",
+        default="qwen3:0.6b",
+        help="OpenAI model to use (default: qwen3:0.6b)",
     )
     parser.add_argument(
         "--episodes",
