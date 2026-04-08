@@ -19,8 +19,26 @@ import json
 import argparse
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+import time
 
-load_dotenv()
+load_dotenv(dotenv_path=".env")
+
+def call_model_with_retry(call_fn, retries=5, base_wait=1, max_wait=30):
+    for i in range(retries):
+        try:
+            return call_fn()
+        except Exception as e:
+            error_msg = str(e).lower()
+
+            if "429" in error_msg or "rate limit" in error_msg:
+                wait = min(base_wait * (2 ** i), max_wait)
+                print(f"Rate limited. Retrying in {wait}s... ({i+1}/{retries})")
+                time.sleep(wait)
+            else:
+                raise
+
+    raise Exception("Max retries exceeded")
+
 
 sys.path.insert(0, ".")
 
@@ -134,16 +152,14 @@ class BaselineAgent:
             verbose: Whether to print agent's reasoning
         """
         api_key = os.environ.get("OPENAI_API_KEY")
-        inference_server = os.environ.get("INFERENCE_SERVER")
-        model_name = os.environ.get("MODEL_LOWER_NAME")
         if not api_key:
             raise ValueError(
                 "OPENAI_API_KEY environment variable not set. "
                 "Please set it with: export OPENAI_API_KEY='your-key-here'"
             )
 
-        self.client = OpenAI(api_key=api_key, base_url=inference_server)
-        self.model = model_name if model_name else model
+        self.client = OpenAI(api_key=api_key)
+        self.model = model
         self.verbose = verbose
 
     def get_action(self, obs: ApiOpenObservation) -> Optional[ApiOpenAction]:
@@ -159,16 +175,19 @@ class BaselineAgent:
         user_prompt = format_observation_for_llm(obs)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,  # Low temperature for consistency
-                max_tokens=500,
+            def _call():
+                return self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,  # Low temperature for consistency
+                    max_tokens=500,
             )
 
+            response = call_model_with_retry(_call, retries=5, base_wait=1)
+            
             llm_response = response.choices[0].message.content
             parsed = parse_llm_response(llm_response)
 
