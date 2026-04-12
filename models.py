@@ -11,9 +11,10 @@ This environment simulates a real-world API workflow system where an agent
 must call APIs in the correct sequence to complete tasks.
 """
 
+import json
 from typing import Dict, List, Any, Optional
 from openenv.core.env_server.types import Action, Observation
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class ApiOpenAction(Action):
@@ -25,6 +26,30 @@ class ApiOpenAction(Action):
 
     api_name: str = Field(..., description="Name of the API to call")
     args: Dict[str, Any] = Field(default_factory=dict, description="Arguments to pass to the API")
+
+    @field_validator("args", mode="before")
+    @classmethod
+    def coerce_args_to_dict(cls, value: Any) -> Dict[str, Any]:
+        """Accept both dict args and JSON-string args from the web UI."""
+        if value is None:
+            return {}
+
+        if isinstance(value, dict):
+            return value
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return {}
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError("args must be a JSON object string") from exc
+            if not isinstance(parsed, dict):
+                raise ValueError("args JSON must decode to an object")
+            return parsed
+
+        raise ValueError("args must be a dictionary or JSON object string")
 
 
 class ApiOpenObservation(Observation):

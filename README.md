@@ -109,6 +109,18 @@ obs.done              # Whether episode ended
 obs.reward            # Reward for this step
 ```
 
+### Web Runner Args Format
+
+When using the OpenEnv web runner UI, enter `Api Name` as plain text (for example, `get_ticket`) and enter `Args` as a JSON object string.
+
+Example:
+
+```json
+{"ticket_id":"T302"}
+```
+
+The environment accepts this JSON text and parses it into the action `args` dictionary.
+
 ### Available Mock APIs
 
 | API | Arguments | Returns |
