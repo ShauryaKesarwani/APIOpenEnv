@@ -5,89 +5,48 @@ These APIs simulate a real-world backend system with users, orders, products, ti
 The agent must call these APIs in the correct sequence to complete tasks.
 """
 
+import copy
+import json
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, Any, Optional
 
-# Mock Database
-MOCK_DB = {
-    "users": {
-        "U101": {"user_id": "U101", "name": "Alice Smith", "email": "alice@example.com"},
-        "U102": {"user_id": "U102", "name": "Bob Johnson", "email": "bob@example.com"},
-        "U103": {"user_id": "U103", "name": "Charlie Brown", "email": "charlie@example.com"},
-        "U104": {"user_id": "U104", "name": "Diana Prince", "email": "diana@example.com"},
-        "U105": {"user_id": "U105", "name": "Eve Davis", "email": "eve@example.com"},
-    },
-    "orders": {
-        "O501": {
-            "order_id": "O501",
-            "user_id": "U101",
-            "product_id": "P701",
-            "amount": 49.99,
-            "date": (datetime.now() - timedelta(days=5)).isoformat(),
-            "status": "completed",
-        },
-        "O502": {
-            "order_id": "O502",
-            "user_id": "U102",
-            "product_id": "P702",
-            "amount": 99.99,
-            "date": (datetime.now() - timedelta(days=10)).isoformat(),
-            "status": "completed",
-        },
-        "O503": {
-            "order_id": "O503",
-            "user_id": "U103",
-            "product_id": "P703",
-            "amount": 29.99,
-            "date": (datetime.now() - timedelta(days=15)).isoformat(),
-            "status": "completed",
-        },
-        "O504": {
-            "order_id": "O504",
-            "user_id": "U104",
-            "product_id": "P704",
-            "amount": 149.99,
-            "date": (datetime.now() - timedelta(days=20)).isoformat(),
-            "status": "completed",
-        },
-        "O505": {
-            "order_id": "O505",
-            "user_id": "U105",
-            "product_id": "P705",
-            "amount": 79.99,
-            "date": (datetime.now() - timedelta(days=35)).isoformat(),
-            "status": "completed",
-        },
-    },
-    "products": {
-        "P701": {"product_id": "P701", "name": "Laptop Pro", "price": 49.99, "category": "Electronics"},
-        "P702": {"product_id": "P702", "name": "Wireless Mouse", "price": 99.99, "category": "Accessories"},
-        "P703": {"product_id": "P703", "name": "USB-C Cable", "price": 29.99, "category": "Accessories"},
-        "P704": {"product_id": "P704", "name": "Monitor 27\"", "price": 149.99, "category": "Electronics"},
-        "P705": {"product_id": "P705", "name": "Keyboard Mechanical", "price": 79.99, "category": "Accessories"},
-    },
-    "tickets": {
-        "T301": {
-            "ticket_id": "T301",
-            "user_id": "U103",
-            "order_id": "O503",
-            "issue": "Product arrived damaged",
-            "status": "open",
-            "created": (datetime.now() - timedelta(days=2)).isoformat(),
-        },
-        "T302": {
-            "ticket_id": "T302",
-            "user_id": "U105",
-            "order_id": "O505",
-            "issue": "Requesting refund - changed mind",
-            "status": "open",
-            "created": (datetime.now() - timedelta(days=40)).isoformat(),
-        },
-    },
-    "invoices": {},
-    "emails_sent": [],
-    "refunds_processed": [],
-}
+MOCK_DB_PATH = Path(__file__).with_name("mock_db.json")
+
+
+def _load_mock_db_template() -> Dict[str, Any]:
+    """Load static mock records from JSON on disk."""
+    with MOCK_DB_PATH.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _hydrate_relative_dates(db_template: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert relative day offsets into ISO timestamps for runtime use."""
+    db = copy.deepcopy(db_template)
+    now = datetime.now()
+
+    for order in db.get("orders", {}).values():
+        days_ago = int(order.pop("days_ago", 0))
+        order["date"] = (now - timedelta(days=days_ago)).isoformat()
+
+    for ticket in db.get("tickets", {}).values():
+        days_ago = int(ticket.pop("days_ago", 0))
+        ticket["created"] = (now - timedelta(days=days_ago)).isoformat()
+
+    # Runtime collections are always resettable mutable containers.
+    db["invoices"] = {}
+    db["emails_sent"] = []
+    db["refunds_processed"] = []
+
+    return db
+
+
+def _load_runtime_mock_db() -> Dict[str, Any]:
+    return _hydrate_relative_dates(_load_mock_db_template())
+
+
+# Runtime mock database (re-hydrated on every environment reset).
+MOCK_DB = _load_runtime_mock_db()
 
 
 def get_user(user_id: str) -> Dict[str, Any]:
@@ -296,6 +255,5 @@ def call_api(api_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
 
 def reset_mock_db():
     """Reset the mock database to initial state (useful for testing)."""
-    MOCK_DB["invoices"].clear()
-    MOCK_DB["emails_sent"].clear()
-    MOCK_DB["refunds_processed"].clear()
+    global MOCK_DB
+    MOCK_DB = _load_runtime_mock_db()

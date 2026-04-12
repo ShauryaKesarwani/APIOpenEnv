@@ -20,6 +20,12 @@ if not HF_TOKEN:
 
 TASKS = ["easy", "medium", "hard"]
 BENCHMARK = "api-workflow-env"
+SCORE_FLOOR = 0.001
+SCORE_CEILING = 0.999
+
+
+def to_open_unit_interval(score: float) -> float:
+    return min(SCORE_CEILING, max(SCORE_FLOOR, score))
 
 TOOL_DEFINITIONS = [
     {
@@ -200,14 +206,6 @@ def parse_content_json(content: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def fallback_action(obs: ApiOpenObservation) -> ApiOpenAction:
-    if "get_user" in obs.available_apis and obs.step_count == 0:
-        for uid in ["U101", "U102", "U103", "U104", "U105"]:
-            if uid in obs.task_description:
-                return ApiOpenAction(api_name="get_user", args={"user_id": uid})
-    return ApiOpenAction(api_name=obs.available_apis[0], args={})
-
-
 def get_action_from_llm(client: OpenAI, obs: ApiOpenObservation) -> Optional[ApiOpenAction]:
     user_prompt = format_observation_for_llm(obs)
     available_tools = [t for t in TOOL_DEFINITIONS if t["function"]["name"] in obs.available_apis]
@@ -249,7 +247,7 @@ def run_task(client: OpenAI, env: ApiOpenEnvironment, task_difficulty: str) -> D
 
     rewards: List[float] = []
     steps_taken = 0
-    score = 0.0
+    score = SCORE_FLOOR
     success = False
 
     try:
@@ -259,7 +257,14 @@ def run_task(client: OpenAI, env: ApiOpenEnvironment, task_difficulty: str) -> D
 
             action = get_action_from_llm(client, obs)
             if action is None:
-                action = fallback_action(obs)
+                log_step(
+                    step=steps_taken,
+                    action="no_action({})",
+                    reward=0.0,
+                    done=True,
+                    error="Model returned no valid tool call",
+                )
+                break
 
             obs = env.step(action)
             reward = obs.reward or 0.0
@@ -279,12 +284,13 @@ def run_task(client: OpenAI, env: ApiOpenEnvironment, task_difficulty: str) -> D
 
             time.sleep(1.0)
 
-        score = env.grade()
+        score = to_open_unit_interval(env.grade())
         success = obs.task_complete
     except Exception:
         success = False
-        score = 0.0
+        score = SCORE_FLOOR
     finally:
+        score = to_open_unit_interval(score)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return {"task": task_difficulty, "success": success, "steps": steps_taken, "score": score, "rewards": rewards}

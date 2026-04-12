@@ -58,20 +58,20 @@ uv run python baseline_agent.py --episodes 3
 
 ## Baseline Agent
 
-The `baseline_agent.py` uses OpenAI's GPT models to solve tasks:
+The `baseline_agent.py` uses OpenAI's SDK supported models to solve tasks:
 
 ```bash
 # Run with default settings (gpt-4o-mini, 3 episodes per difficulty)
-python baseline_agent.py
+uv run python baseline_agent.py
 
 # Use a different model
-python baseline_agent.py --model gpt-4o
+uv run python baseline_agent.py --model gpt-4o
 
 # Test specific difficulty
-python baseline_agent.py --difficulty medium --episodes 5
+uv run python baseline_agent.py --difficulty medium --episodes 5
 
 # Save results to JSON
-python baseline_agent.py --output results.json
+uv run python baseline_agent.py --output results.json
 ```
 
 ### Expected Performance
@@ -216,7 +216,7 @@ export API_BASE_URL="http://localhost:11434/v1"  # for Ollama
 export MODEL_NAME="qwen2.5:14b"
 
 # Collect 100+ successful trajectories (grade >= 0.8)
-python collect_trajectories.py \
+uv run python collect_trajectories.py \
   --model qwen2.5:14b \
   --episodes 100 \
   --min-grade 0.8 \
@@ -227,7 +227,7 @@ python collect_trajectories.py \
 
 ```bash
 # Convert to fine-tuning format
-python prepare_training_data.py \
+uv run python prepare_training_data.py \
   --input data/qwen_trajectories.jsonl \
   --output data/training_data.jsonl \
   --format openai
@@ -240,7 +240,7 @@ python prepare_training_data.py \
 pip install unsloth trl peft bitsandbytes
 
 # Fine-tune Qwen 0.8B (takes 2-4 hours on single GPU)
-python train_model.py
+uv run python train_model.py
 ```
 
 The training script:
@@ -253,11 +253,11 @@ The training script:
 
 ```bash
 # Compare base model vs trained model
-python baseline_agent.py --model qwen2.5:0.8b --episodes 10 --output results/base.json
-python baseline_agent.py --model ./trained_model --episodes 10 --output results/trained.json
+uv run python baseline_agent.py --model qwen2.5:0.8b --episodes 10 --output results/base.json
+uv run python baseline_agent.py --model ./trained_model --episodes 10 --output results/trained.json
 
 # Generate comparison report
-python compare_models.py \
+uv run python compare_models.py \
   results/base.json \
   results/trained.json \
   --names "Qwen 0.8B Base" "Qwen 0.8B Trained"
@@ -315,7 +315,7 @@ export MODEL_NAME="gpt-4o-mini"
 export HF_TOKEN="your-api-key"
 
 # Run inference on all tasks
-python inference.py
+uv run python inference.py
 ```
 
 **Output Format** (required for hackathon):
@@ -334,3 +334,4 @@ The script:
 - ✅ Outputs exact [START]/[STEP]/[END] format
 - ✅ Completes within 20 minutes
 - ✅ Returns scores in [0, 1] range
+

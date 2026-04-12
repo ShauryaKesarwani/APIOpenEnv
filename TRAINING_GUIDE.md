@@ -36,7 +36,7 @@ $env:OPENAI_API_KEY   = "ollama"   # dummy key is fine for Ollama
 ```
 
 # Run evaluation to collect trajectories
-python collect_trajectories.py \
+uv run python collect_trajectories.py \
   --model qwen2.5:14b \
   --episodes 100 \
   --min-grade 0.8 \
@@ -357,16 +357,16 @@ if __name__ == "__main__":
 
 ```bash
 # 1. Qwen (Upper Bound)
-python baseline_agent.py --model qwen2.5:14b --episodes 10 --output results/qwen.json
+uv run python baseline_agent.py --model qwen2.5:14b --episodes 10 --output results/qwen.json
 
 # 2. Your 0.8B SFT model
-python baseline_agent.py --model models/api_agent_0.8b_sft --episodes 10 --output results/sft.json
+uv run python baseline_agent.py --model models/api_agent_0.8b_sft --episodes 10 --output results/sft.json
 
 # 3. Your 0.8B DPO model
-python baseline_agent.py --model models/api_agent_0.8b_dpo --episodes 10 --output results/dpo.json
+uv run python baseline_agent.py --model models/api_agent_0.8b_dpo --episodes 10 --output results/dpo.json
 
 # Compare results
-python compare_results.py results/qwen.json results/sft.json results/dpo.json
+uv run python compare_results.py results/qwen.json results/sft.json results/dpo.json
 ```
 
 ### Key Metrics to Track:
@@ -422,3 +422,4 @@ python compare_results.py results/qwen.json results/sft.json results/dpo.json
 5. Evaluate and iterate
 6. Apply DPO/PPO for further improvement
 7. Deploy best model and compare to Qwen baseline
+

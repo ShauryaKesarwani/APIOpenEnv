@@ -18,17 +18,17 @@ export INFERENCE_SERVER="http://localhost:11434/v1"
 export MODEL_LOWER_NAME="qwen2.5:14b"
 
 # Run evaluation (with tool calling)
-python baseline_agent.py --model qwen2.5:14b --episodes 3 --output results/qwen.json
+uv run python baseline_agent.py --model qwen2.5:14b --episodes 3 --output results/qwen.json
 
 # Run with legacy JSON format
-python baseline_agent.py --model qwen2.5:14b --episodes 3 --no-tools
+uv run python baseline_agent.py --model qwen2.5:14b --episodes 3 --no-tools
 ```
 
 ### 2. Collect Training Data
 
 ```bash
 # Collect 100 high-quality trajectories (grade >= 0.8)
-python collect_trajectories.py \
+uv run python collect_trajectories.py \
   --model qwen2.5:14b \
   --episodes 100 \
   --min-grade 0.8 \
@@ -39,13 +39,13 @@ python collect_trajectories.py \
 
 ```bash
 # Convert to OpenAI fine-tuning format (with tool calls)
-python prepare_training_data.py \
+uv run python prepare_training_data.py \
   --input data/qwen_trajectories.jsonl \
   --output data/training_data.jsonl \
   --format openai
 
 # Or convert to text format (for instruction tuning)
-python prepare_training_data.py \
+uv run python prepare_training_data.py \
   --input data/qwen_trajectories.jsonl \
   --output data/training_data_text.jsonl \
   --format text
@@ -63,13 +63,13 @@ See `TRAINING_GUIDE.md` for detailed training instructions using:
 
 ```bash
 # Evaluate your fine-tuned model
-python baseline_agent.py \
+uv run python baseline_agent.py \
   --model path/to/your/model \
   --episodes 10 \
   --output results/your_model.json
 
 # Compare multiple models
-python compare_models.py \
+uv run python compare_models.py \
   results/qwen.json \
   results/your_sft_model.json \
   results/your_dpo_model.json \
@@ -159,3 +159,4 @@ See `TRAINING_GUIDE.md` for detailed explanations of:
 - Reward function design
 - Evaluation metrics
 - Best practices
+

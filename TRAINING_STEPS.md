@@ -17,10 +17,10 @@ $env:INFERENCE_SERVER = "http://localhost:11434/v1"
 $env:OPENAI_API_KEY   = "ollama"   # dummy key is fine for Ollama
 
 # Quick sanity check (optional)
-python baseline_agent.py --model qwen3:0.8b --episodes 1 --difficulty easy --no-tools
+uv run --project . python baseline_agent.py --model qwen3:0.8b --episodes 1 --difficulty easy --no-tools
 
 # Collect trajectories (use --no-tools if your Ollama build doesn't support tool_calls)
-python collect_trajectories.py `
+uv run --project . python collect_trajectories.py `
   --model qwen3:0.8b `
   --episodes 30 `
   --difficulty easy `
@@ -43,7 +43,7 @@ This step is **optional** for `train_model.py` (that script trains directly from
 Use it if you want an OpenAI-style JSONL dataset for other trainers.
 
 ```powershell
-python prepare_training_data.py `
+uv run --project . python prepare_training_data.py `
   --input data/qwen3_0.8b_trajectories.jsonl `
   --output data/training_data_openai.jsonl `
   --format openai
@@ -63,7 +63,7 @@ In ~45 minutes you can do a short sanity run (few trajectories, 1 epoch):
 python -m pip install -e ".[training]"
 
 # Quick sanity training run
-python train_model.py `
+uv run --project . python train_model.py `
   --trajectories data/qwen3_0.8b_trajectories.jsonl `
   --epochs 1 `
   --min-grade 0.6 `
@@ -86,13 +86,13 @@ If you specifically want a Qwen3 0.8B base (HF), pass `--base-model <hf_model_id
 ### Step 4: Evaluate (10-20 min)
 ```bash
 # Test base model
-python baseline_agent.py \
+uv run --project . python baseline_agent.py \
   --model qwen2.5:0.8b \
   --episodes 10 \
   --output results/base.json
 
 # Test trained model
-python baseline_agent.py \
+uv run --project . python baseline_agent.py \
   --model ./trained_model \
   --episodes 10 \
   --output results/trained.json
@@ -102,7 +102,7 @@ python baseline_agent.py \
 
 ### Step 5: Compare Results (1 min)
 ```bash
-python compare_models.py \
+uv run --project . python compare_models.py \
   results/base.json \
   results/trained.json \
   --names "Qwen 0.8B Base" "Qwen 0.8B Trained"
@@ -135,7 +135,7 @@ export API_BASE_URL="https://api.openai.com/v1"
 export MODEL_NAME="gpt-4o-mini"
 export HF_TOKEN="your-key"
 
-python inference.py
+uv run --project . python inference.py
 ```
 
 This runs all 3 tasks with proper [START]/[STEP]/[END] logging.

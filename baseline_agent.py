@@ -7,10 +7,10 @@ then decides which API to call next.
 
 Usage:
     export OPENAI_API_KEY="your-key-here"
-    python baseline_agent.py
+    uv run --project . python baseline_agent.py
 
     # Or with specific settings:
-    python baseline_agent.py --model qwen3:0.6b --episodes 5 --difficulty all
+    uv run --project . python baseline_agent.py --model qwen3:0.6b --episodes 5 --difficulty all
 """
 
 import os
@@ -18,11 +18,24 @@ import sys
 import json
 import argparse
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
-import time
 
 load_dotenv(dotenv_path=".env")
+
+DEFAULT_MODEL = "qwen3:0.6b"
+
+
+def resolve_model_name(cli_model: Optional[str]) -> Tuple[str, str]:
+    """Resolve model name with precedence: CLI > env MODEL_NAME > default."""
+    if cli_model and cli_model.strip():
+        return cli_model.strip(), "cli"
+
+    env_model = os.environ.get("MODEL_NAME")
+    if env_model and env_model.strip():
+        return env_model.strip(), "env"
+
+    return DEFAULT_MODEL, "default"
 
 def call_model_with_retry(call_fn, retries=5, base_wait=1, max_wait=30):
     for i in range(retries):
@@ -31,9 +44,9 @@ def call_model_with_retry(call_fn, retries=5, base_wait=1, max_wait=30):
         except Exception as e:
             error_msg = str(e).lower()
 
-            if "429" in error_msg or "rate limit" in error_msg:
+            if "429" in error_msg or "rate limit" in error_msg or "timeout" in error_msg or "timed out" in error_msg:
                 wait = min(base_wait * (2 ** i), max_wait)
-                print(f"Rate limited. Retrying in {wait}s... ({i+1}/{retries})")
+                print(f"Transient model/API error. Retrying in {wait}s... ({i+1}/{retries})")
                 time.sleep(wait)
             else:
                 raise
@@ -200,8 +213,18 @@ IMPORTANT RULES:
 1. Only use APIs from the available tools
 2. Use information from previous API results to inform your next action
 3. Think step-by-step about what information you need
-4. For invoice tasks: get_user -> get_orders -> get_product -> create_invoice
-5. For ticket tasks: get_ticket -> get_user -> get_orders -> process_refund (if eligible) -> send_email
+4. Example for invoice tasks: get_user -> get_orders -> get_product -> create_invoice
+5. Example for ticket tasks: get_ticket -> get_user -> get_orders -> process_refund (if eligible) -> send_email
+
+If tool calling is unavailable, respond with ONLY a valid JSON object using this exact schema:
+{
+    "api_name": "<one_api_from_available_apis>",
+    "args": {"<arg_name>": "<value>"},
+    "reasoning": "<brief reason>"
+}
+
+Valid example:
+{"api_name": "get_user", "args": {"user_id": "U101"}, "reasoning": "Need user details first."}
 """
 
 
@@ -232,7 +255,15 @@ def format_observation_for_llm(obs: ApiOpenObservation) -> str:
     else:
         lines.append("\nNo API calls made yet. Start by gathering information.")
 
-    lines.append("\nWhat API should be called next? Respond with JSON.")
+    lines.append(
+        "\nWhat API should be called next? Respond with ONLY valid JSON (no markdown)."
+    )
+    lines.append(
+        'Required JSON schema: {"api_name": "<api>", "args": {"k": "v"}, "reasoning": "..."}'
+    )
+    lines.append(
+        'Example: {"api_name": "get_user", "args": {"user_id": "U101"}, "reasoning": "Need user details first."}'
+    )
     return "\n".join(lines)
 
 
@@ -267,28 +298,38 @@ def parse_llm_response(response: str) -> Optional[Dict[str, Any]]:
 class BaselineAgent:
     """LLM-based agent for the API Workflow Environment."""
 
-    def __init__(self, model: str = "qwen3:0.6b", verbose: bool = True, use_tools: bool = True):
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        verbose: bool = True,
+        use_tools: bool = True,
+        request_timeout: int = 45,
+        model_retries: int = 3,
+    ):
         """
         Initialize the agent with OpenAI client.
 
         Args:
-            model: OpenAI/OLLAMA model to use (default: qwen3:0.6b for cost efficiency)
+            model: Resolved OpenAI/OLLAMA model name to use
             verbose: Whether to print agent's reasoning
             use_tools: Whether to use tool calling format (True) or legacy JSON format (False)
+            request_timeout: Per-request timeout in seconds for model calls
+            model_retries: Number of retries for transient API/model failures
         """
         api_key = os.environ.get("OPENAI_API_KEY")
         api_base_url = os.environ.get("API_BASE_URL")
-        model_name = os.environ.get("MODEL_NAME")
         if not api_key:
             raise ValueError(
                 "OPENAI_API_KEY environment variable not set. "
                 "Please set it with: export OPENAI_API_KEY='your-key-here'"
             )
 
-        self.client = OpenAI(api_key=api_key, base_url=api_base_url)
-        self.model = model_name if model_name else model
+        self.client = OpenAI(api_key=api_key, base_url=api_base_url, timeout=request_timeout)
+        self.model = model
         self.verbose = verbose
         self.use_tools = use_tools
+        self.request_timeout = request_timeout
+        self.model_retries = model_retries
 
     def get_action(self, obs: ApiOpenObservation) -> Optional[ApiOpenAction]:
         """
@@ -316,7 +357,7 @@ class BaselineAgent:
                     {"role": "user", "content": user_prompt},
                 ],
                 "temperature": 0.1,  # Low temperature for consistency
-                "max_tokens": 500,
+                # "max_tokens": 220,
             }
             
             # Add tools if using tool calling format
@@ -324,7 +365,10 @@ class BaselineAgent:
                 request_params["tools"] = available_tools
                 request_params["tool_choice"] = "auto"
             
-            response = self.client.chat.completions.create(**request_params)
+            response = call_model_with_retry(
+                lambda: self.client.chat.completions.create(**request_params),
+                retries=self.model_retries,
+            )
             message = response.choices[0].message
 
             # Handle tool calls (new format)
@@ -357,12 +401,14 @@ class BaselineAgent:
                         args=parsed["args"],
                     )
                 else:
-                    print(f"  [Agent] Could not parse response: {llm_response[:200]}")
+                    print(f"  [Agent] Could not parse response: {llm_response[:400]}")
                     return None
             else:
                 print(f"  [Agent] No tool call or content in response")
                 return None
 
+        except KeyboardInterrupt:
+            raise
         except Exception as e:
             print(f"  [Agent] API error: {e}")
             return None
@@ -404,17 +450,8 @@ def run_episode(
             print(f"  [Retry {retry + 1}/{max_retries}]")
 
         if not action:
-            # Fallback: try a safe default action
-            print("  [Fallback] Using default action")
-            if "get_user" in obs.available_apis and obs.step_count == 0:
-                # Extract user_id from task if possible
-                task = obs.task_description
-                for uid in ["U101", "U102", "U103", "U104", "U105"]:
-                    if uid in task:
-                        action = ApiOpenAction(api_name="get_user", args={"user_id": uid})
-                        break
-            if not action:
-                action = ApiOpenAction(api_name=obs.available_apis[0], args={})
+            print("  [Abort] No valid action returned by model. Ending episode early.")
+            break
 
         # Execute action
         obs = env.step(action)
@@ -454,11 +491,13 @@ def run_episode(
 
 
 def evaluate_agent(
-    model: str = os.environ.get("MODEL_NAME", "qwen3:0.6b"),
+    model: Optional[str] = None,
     episodes_per_difficulty: int = 3,
     difficulties: List[str] = None,
     verbose: bool = True,
     use_tools: bool = True,
+    request_timeout: int = 45,
+    model_retries: int = 3,
 ) -> Dict[str, Any]:
     """
     Evaluate the agent across multiple episodes and difficulties.
@@ -469,6 +508,8 @@ def evaluate_agent(
         difficulties: List of difficulties to test (default: all)
         verbose: Print detailed output
         use_tools: Whether to use tool calling format
+        request_timeout: Per-request timeout in seconds for model calls
+        model_retries: Number of retries for transient API/model failures
 
     Returns:
         Evaluation results with scores
@@ -476,15 +517,24 @@ def evaluate_agent(
     if difficulties is None:
         difficulties = ["easy", "medium", "hard"]
 
+    resolved_model, model_source = resolve_model_name(model)
+
     print("=" * 60)
     print("API WORKFLOW ENVIRONMENT - BASELINE AGENT EVALUATION")
     print("=" * 60)
-    print(f"Model: {model}")
+    print(f"Model: {resolved_model}")
+    # print(f"Model Source: {model_source.upper()} (CLI > ENV MODEL_NAME > DEFAULT)")
     print(f"Tool Calling Mode: {use_tools}")
     print(f"Episodes per difficulty: {episodes_per_difficulty}")
     print(f"Difficulties: {difficulties}")
 
-    agent = BaselineAgent(model=model, verbose=verbose, use_tools=use_tools)
+    agent = BaselineAgent(
+        model=resolved_model,
+        verbose=verbose,
+        use_tools=use_tools,
+        request_timeout=request_timeout,
+        model_retries=model_retries,
+    )
     env = ApiOpenEnvironment()
 
     all_results = []
@@ -528,7 +578,8 @@ def evaluate_agent(
     print(f"  Average Grade: {overall_grade:.2f}")
 
     return {
-        "model": model,
+        "model": resolved_model,
+        "model_source": model_source,
         "episodes": all_results,
         "stats_by_difficulty": stats_by_difficulty,
         "overall_grade": overall_grade,
@@ -538,13 +589,21 @@ def evaluate_agent(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run baseline LLM agent on API Workflow Environment"
+        description="Run baseline LLM agent on API Workflow Environment",
+        epilog=(
+            "Examples:\n"
+            "  uv run python baseline_agent.py\n"
+            "  uv run python baseline_agent.py --episodes 1 --difficulty medium\n"
+            "  uv run python baseline_agent.py --episodes 1 --difficulty medium --no-tools\n"
+            "  uv run python baseline_agent.py --model qwen/qwen3-32b"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
         "--model",
         type=str,
-        default="qwen3:0.6b",
-        help="OpenAI model to use (default: qwen3:0.6b)",
+        default=None,
+        help="Model to use. Precedence: CLI --model > env MODEL_NAME > default qwen3:0.6b",
     )
     parser.add_argument(
         "--episodes",
@@ -575,6 +634,24 @@ def main():
         action="store_true",
         help="Use legacy JSON format instead of tool calling",
     )
+    parser.add_argument(
+        "--no-tool",
+        dest="no_tools",
+        action="store_true",
+        help="Alias for --no-tools",
+    )
+    parser.add_argument(
+        "--request-timeout",
+        type=int,
+        default=45,
+        help="Per-model-request timeout in seconds (default: 45)",
+    )
+    parser.add_argument(
+        "--model-retries",
+        type=int,
+        default=3,
+        help="Retries for transient model/API errors (default: 3)",
+    )
 
     args = parser.parse_args()
 
@@ -585,13 +662,25 @@ def main():
         difficulties = [args.difficulty]
 
     # Run evaluation
-    results = evaluate_agent(
-        model=args.model,
-        episodes_per_difficulty=args.episodes,
-        difficulties=difficulties,
-        verbose=not args.quiet,
-        use_tools=not args.no_tools,
-    )
+    try:
+        results = evaluate_agent(
+            model=args.model,
+            episodes_per_difficulty=args.episodes,
+            difficulties=difficulties,
+            verbose=not args.quiet,
+            use_tools=not args.no_tools,
+            request_timeout=args.request_timeout,
+            model_retries=args.model_retries,
+        )
+    except KeyboardInterrupt:
+        print("\nInterrupted by user. Exiting cleanly.")
+        return {
+            "model": args.model,
+            "episodes": [],
+            "stats_by_difficulty": {},
+            "overall_grade": 0.0,
+            "overall_completion_rate": 0.0,
+        }
 
     # Save results if requested
     if args.output:

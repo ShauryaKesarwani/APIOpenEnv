@@ -1,172 +1,76 @@
-[
-  {
-    "task_description": "Generate invoice workflow for user U101",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [],
-    "step": 1,
-    "max_steps": 8,
-    "task_complete": false
+{
+  "users": {
+    "U101": {"user_id": "U101", "name": "Alice Smith", "email": "alice@example.com"},
+    "U102": {"user_id": "U102", "name": "Bob Johnson", "email": "bob@example.com"},
+    "U103": {"user_id": "U103", "name": "Charlie Brown", "email": "charlie@example.com"},
+    "U104": {"user_id": "U104", "name": "Diana Prince", "email": "diana@example.com"},
+    "U105": {"user_id": "U105", "name": "Eve Davis", "email": "eve@example.com"}
   },
-  {
-    "task_description": "Prepare billing pipeline for user U102",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U102"}, "result": {"name": "User102", "email": "u102@x.com"}}
-    ],
-    "step": 2,
-    "max_steps": 8,
-    "task_complete": false
+  "orders": {
+    "O501": {
+      "order_id": "O501",
+      "user_id": "U101",
+      "product_id": "P701",
+      "amount": 49.99,
+      "days_ago": 5,
+      "status": "completed"
+    },
+    "O502": {
+      "order_id": "O502",
+      "user_id": "U102",
+      "product_id": "P702",
+      "amount": 99.99,
+      "days_ago": 10,
+      "status": "completed"
+    },
+    "O503": {
+      "order_id": "O503",
+      "user_id": "U103",
+      "product_id": "P703",
+      "amount": 29.99,
+      "days_ago": 15,
+      "status": "completed"
+    },
+    "O504": {
+      "order_id": "O504",
+      "user_id": "U104",
+      "product_id": "P704",
+      "amount": 149.99,
+      "days_ago": 20,
+      "status": "completed"
+    },
+    "O505": {
+      "order_id": "O505",
+      "user_id": "U105",
+      "product_id": "P705",
+      "amount": 79.99,
+      "days_ago": 35,
+      "status": "completed"
+    }
   },
-  {
-    "task_description": "Create invoice chain for user U103",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U103"}},
-      {"api": "get_orders", "args": {"user_id": "U103"}, "result": {"order_id": "O501", "product_id": "P701"}}
-    ],
-    "step": 3,
-    "max_steps": 8,
-    "task_complete": false
+  "products": {
+    "P701": {"product_id": "P701", "name": "Laptop Pro", "price": 49.99, "category": "Electronics"},
+    "P702": {"product_id": "P702", "name": "Wireless Mouse", "price": 99.99, "category": "Accessories"},
+    "P703": {"product_id": "P703", "name": "USB-C Cable", "price": 29.99, "category": "Accessories"},
+    "P704": {"product_id": "P704", "name": "Monitor 27\"", "price": 149.99, "category": "Electronics"},
+    "P705": {"product_id": "P705", "name": "Keyboard Mechanical", "price": 79.99, "category": "Accessories"}
   },
-  {
-    "task_description": "Process purchase to invoice for user U104",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U104"}},
-      {"api": "get_orders", "args": {"user_id": "U104"}},
-      {"api": "get_product", "args": {"product_id": "P702"}}
-    ],
-    "step": 4,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Invoice preparation sequence for user U105",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U105"}},
-      {"api": "get_orders", "args": {"user_id": "U105"}},
-      {"api": "get_product", "args": {"product_id": "P703"}},
-      {"api": "create_invoice", "args": {"user_id": "U105", "order_id": "O502"}}
-    ],
-    "step": 5,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Finalize invoice and notify user U106",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U106"}},
-      {"api": "get_orders", "args": {"user_id": "U106"}},
-      {"api": "get_product", "args": {"product_id": "P704"}},
-      {"api": "create_invoice", "args": {"user_id": "U106", "order_id": "O503"}},
-      {"api": "send_email", "args": {"email": "u106@x.com"}}
-    ],
-    "step": 6,
-    "max_steps": 8,
-    "task_complete": true
-  },
-
-  {
-    "task_description": "Execute billing steps for user U107",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_orders", "args": {"user_id": "U107"}}
-    ],
-    "step": 2,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Initiate invoice generation for user U108",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U108"}},
-      {"api": "get_orders", "args": {"user_id": "U108"}}
-    ],
-    "step": 3,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Continue invoice flow for user U109",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U109"}},
-      {"api": "get_orders", "args": {"user_id": "U109"}},
-      {"api": "get_product", "args": {"product_id": "P705"}}
-    ],
-    "step": 4,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Advance billing pipeline for user U110",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U110"}},
-      {"api": "get_orders", "args": {"user_id": "U110"}},
-      {"api": "get_product", "args": {"product_id": "P706"}},
-      {"api": "create_invoice", "args": {"user_id": "U110", "order_id": "O504"}}
-    ],
-    "step": 5,
-    "max_steps": 8,
-    "task_complete": false
-  },
-
-  {
-    "task_description": "Complete billing cycle for user U111",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U111"}},
-      {"api": "get_orders", "args": {"user_id": "U111"}},
-      {"api": "get_product", "args": {"product_id": "P707"}},
-      {"api": "create_invoice", "args": {"user_id": "U111", "order_id": "O505"}},
-      {"api": "send_email", "args": {"email": "u111@x.com"}}
-    ],
-    "step": 6,
-    "max_steps": 8,
-    "task_complete": true
-  },
-
-  {
-    "task_description": "Retrieve product info for user U115",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U115"}},
-      {"api": "get_orders", "args": {"user_id": "U115"}},
-      {"api": "get_product", "args": {"product_id": "P709"}}
-    ],
-    "step": 4,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Generate invoice record for user U116",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U116"}},
-      {"api": "get_orders", "args": {"user_id": "U116"}},
-      {"api": "get_product", "args": {"product_id": "P710"}},
-      {"api": "create_invoice", "args": {"user_id": "U116", "order_id": "O507"}}
-    ],
-    "step": 5,
-    "max_steps": 8,
-    "task_complete": false
-  },
-  {
-    "task_description": "Send invoice notification to user U117",
-    "available_apis": ["get_user", "get_orders", "get_product", "create_invoice", "send_email"],
-    "api_call_history": [
-      {"api": "get_user", "args": {"user_id": "U117"}},
-      {"api": "get_orders", "args": {"user_id": "U117"}},
-      {"api": "get_product", "args": {"product_id": "P711"}},
-      {"api": "create_invoice", "args": {"user_id": "U117", "order_id": "O508"}},
-      {"api": "send_email", "args": {"email": "u117@x.com"}}
-    ],
-    "step": 6,
-    "max_steps": 8,
-    "task_complete": true
+  "tickets": {
+    "T301": {
+      "ticket_id": "T301",
+      "user_id": "U103",
+      "order_id": "O503",
+      "issue": "Product arrived damaged",
+      "status": "open",
+      "days_ago": 2
+    },
+    "T302": {
+      "ticket_id": "T302",
+      "user_id": "U105",
+      "order_id": "O505",
+      "issue": "Requesting refund - changed mind",
+      "status": "open",
+      "days_ago": 40
+    }
   }
-]
+}

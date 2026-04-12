@@ -10,6 +10,15 @@ The grader assigns a score from 0.0 to 1.0 based on:
 from typing import Dict, List, Any
 
 
+SCORE_FLOOR = 0.001
+SCORE_CEILING = 0.999
+
+
+def _to_open_unit_interval(score: float) -> float:
+    """Map a score to the strict open interval (0, 1)."""
+    return min(SCORE_CEILING, max(SCORE_FLOOR, score))
+
+
 def grade_episode(
     task_config: Dict[str, Any],
     api_call_history: List[Dict[str, Any]],
@@ -29,7 +38,7 @@ def grade_episode(
     if not task_complete:
         # No credit for incomplete tasks
         return {
-            "score": 0.0,
+            "score": round(_to_open_unit_interval(0.0), 3),
             "task_complete": False,
             "breakdown": {
                 "completion": 0.0,
@@ -69,8 +78,8 @@ def grade_episode(
         (1.0 * completion_weight) + (efficiency * efficiency_weight) + (success_rate * success_rate_weight)
     )
 
-    # Ensure score is in [0.0, 1.0]
-    score = max(0.0, min(1.0, score))
+    # Ensure score is in strict (0, 1)
+    score = _to_open_unit_interval(score)
 
     feedback = []
     if score >= 0.9:
@@ -117,20 +126,20 @@ def grade_task_easy(api_call_history: List[Dict[str, Any]]) -> float:
         Score from 0.0 to 1.0
     """
     if not api_call_history:
-        return 0.0
+        return _to_open_unit_interval(0.0)
 
     # Check if get_user was called successfully
     for call in api_call_history:
         if call["api_name"] == "get_user" and call.get("result", {}).get("success"):
             # Penalize for additional calls
             if len(api_call_history) == 1:
-                return 1.0
+                return _to_open_unit_interval(1.0)
             elif len(api_call_history) == 2:
-                return 0.9
+                return _to_open_unit_interval(0.9)
             else:
-                return max(0.6, 1.0 - (len(api_call_history) - 1) * 0.1)
+                return _to_open_unit_interval(max(0.6, 1.0 - (len(api_call_history) - 1) * 0.1))
 
-    return 0.0
+    return _to_open_unit_interval(0.0)
 
 
 def grade_task_medium(api_call_history: List[Dict[str, Any]]) -> float:
@@ -146,7 +155,7 @@ def grade_task_medium(api_call_history: List[Dict[str, Any]]) -> float:
         Score from 0.0 to 1.0
     """
     if not api_call_history:
-        return 0.0
+        return _to_open_unit_interval(0.0)
 
     # Check if invoice was created
     invoice_created = any(
@@ -155,18 +164,18 @@ def grade_task_medium(api_call_history: List[Dict[str, Any]]) -> float:
     )
 
     if not invoice_created:
-        return 0.0
+        return _to_open_unit_interval(0.0)
 
     # Perfect path: 4 steps
     total_calls = len(api_call_history)
     if total_calls == 4:
-        return 1.0
+        return _to_open_unit_interval(1.0)
     elif total_calls <= 5:
-        return 0.9
+        return _to_open_unit_interval(0.9)
     elif total_calls <= 6:
-        return 0.8
+        return _to_open_unit_interval(0.8)
     else:
-        return max(0.6, 1.0 - (total_calls - 4) * 0.1)
+        return _to_open_unit_interval(max(0.6, 1.0 - (total_calls - 4) * 0.1))
 
 
 def grade_task_hard(api_call_history: List[Dict[str, Any]]) -> float:
@@ -182,7 +191,7 @@ def grade_task_hard(api_call_history: List[Dict[str, Any]]) -> float:
         Score from 0.0 to 1.0
     """
     if not api_call_history:
-        return 0.0
+        return _to_open_unit_interval(0.0)
 
     # Check if refund was processed and email sent
     refund_processed = any(
@@ -197,18 +206,18 @@ def grade_task_hard(api_call_history: List[Dict[str, Any]]) -> float:
     if not (refund_processed and email_sent):
         # Partial credit if only refund or only email
         if refund_processed:
-            return 0.4
+            return _to_open_unit_interval(0.4)
         elif email_sent:
-            return 0.2
-        return 0.0
+            return _to_open_unit_interval(0.2)
+        return _to_open_unit_interval(0.0)
 
     # Both required actions completed
     total_calls = len(api_call_history)
     if total_calls == 5:
-        return 1.0
+        return _to_open_unit_interval(1.0)
     elif total_calls <= 6:
-        return 0.95
+        return _to_open_unit_interval(0.95)
     elif total_calls <= 7:
-        return 0.85
+        return _to_open_unit_interval(0.85)
     else:
-        return max(0.7, 1.0 - (total_calls - 5) * 0.05)
+        return _to_open_unit_interval(max(0.7, 1.0 - (total_calls - 5) * 0.05))

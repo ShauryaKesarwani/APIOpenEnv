@@ -28,6 +28,14 @@ EXPECTED_SEQUENCES = {
     "hard_no_refund": ["get_ticket", "get_user", "get_orders", "send_email"],
 }
 
+SCORE_FLOOR = 0.001
+SCORE_CEILING = 0.999
+
+
+def _to_open_unit_interval(score: float) -> float:
+    """Map a score to the strict open interval (0, 1)."""
+    return min(SCORE_CEILING, max(SCORE_FLOOR, score))
+
 
 def _check_hard_success(history: List[Dict[str, Any]], ticket_id: str) -> bool:
     """Check success for hard task based on ticket type."""
@@ -289,7 +297,7 @@ class ApiOpenEnvironment(Environment):
 
     def grade(self) -> float:
         """
-        Compute a deterministic score for the episode (0.0 to 1.0).
+        Compute a deterministic score for the episode in the strict range (0, 1).
 
         Scoring:
         - Task completion: 0.5 points
@@ -336,4 +344,4 @@ class ApiOpenEnvironment(Environment):
         sequence_score = matches / len(expected_seq) if expected_seq else 0
         score += 0.2 * sequence_score
 
-        return min(1.0, max(0.0, score))
+        return _to_open_unit_interval(score)
